@@ -112,10 +112,40 @@ func New(options ...Option) Markdown {
 }
 
 func (m *markdown) Convert(source []byte, writer io.Writer, opts ...parser.ParseOption) error {
+// method that  converts a md document into a html document
+
+	reader := text.NewReader(source)
+	// reader reads the text in the source which is the md file (document)
+
+	doc := m.parser.Parse(reader, opts...)
+	// doc is the ast tree holding the parsed md file
+
+	return m.renderer.Render(writer, source, doc)
+	// m.renderer.Render is html rendering of the parsed md file
+	// not sure why we still need to read the source
+}
+
+func (m *markdown) AltConvert(source []byte, writer io.Writer, opts ...parser.ParseOption) error {
 	reader := text.NewReader(source)
 	doc := m.parser.Parse(reader, opts...)
-	return m.renderer.Render(writer, source, doc)
+
+	// we will add the default class attributes to each ast node here
+	modDoc := m.addDefAttributes(source, doc)
+
+	return m.renderer.Render(writer, source, modDoc)
 }
+
+/*
+func (m *markdown) DomConvert(source []byte, writer io.Writer, opts ...parser.ParseOption) error {
+	reader := text.NewReader(source)
+	doc := m.parser.Parse(reader, opts...)
+
+	// we will add the default class attributes to each ast node here
+	modDoc := m.addDefAttributes(source, doc)
+
+	return m.renderer.ScriptRender(scriptWriter, source, doc)
+}
+*/
 
 func (m *markdown) Parser() parser.Parser {
 	return m.parser
