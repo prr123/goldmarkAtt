@@ -1,12 +1,19 @@
 // Package goldmark implements functions to convert markdown text to a desired format.
+
+// modified by prr
+
 package goldmark
 
 import (
-	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/renderer"
-	"github.com/yuin/goldmark/renderer/html"
-	"github.com/yuin/goldmark/text"
-	"github.com/yuin/goldmark/util"
+//	"github.com/yuin/goldmark/renderer"
+//	"google/gdoc/goldmark/classes"
+	"fmt"
+	"google/gdoc/goldmark/parser"
+	"google/gdoc/goldmark/renderer"
+	"google/gdoc/goldmark/renderer/html"
+	"google/gdoc/goldmark/renderer/htmlAlt"
+	"google/gdoc/goldmark/text"
+	"google/gdoc/goldmark/util"
 	"io"
 )
 
@@ -19,17 +26,43 @@ func DefaultParser() parser.Parser {
 }
 
 // DefaultRenderer returns a new Renderer that is configured by default values.
-func DefaultRenderer() renderer.Renderer {
-	return renderer.NewRenderer(renderer.WithNodeRenderers(util.Prioritized(html.NewRenderer(), 1000)))
+func DefaultRenderer(alt bool) renderer.Renderer {
+fmt.Printf("hello default renderer!\n")
+fmt.Printf("renderer: new renderer!\n")
+
+var x renderer.NodeRenderer
+
+	if alt {
+		x = htmlAlt.NewRenderer()
+	} else {
+		x = html.NewRenderer()
+	}
+fmt.Printf("html renderer alt: %t %v\n", alt, x)
+	y:= renderer.WithNodeRenderers(util.Prioritized(x, 1000))
+fmt.Printf("node renderer: %v\n", y)
+	return renderer.NewRenderer(y)
+//	return renderer.NewRenderer(renderer.WithNodeRenderers(util.Prioritized(x, 1000)))
 }
 
-var defaultMarkdown = New()
+var defaultMarkdown = NewMd()
+// very confusing new() vs New() new() is reserved function
+
 
 // Convert interprets a UTF-8 bytes source in Markdown and
 // write rendered contents to a writer w.
+
+// why does Convert have to be abstracted??
 func Convert(source []byte, w io.Writer, opts ...parser.ParseOption) error {
 	return defaultMarkdown.Convert(source, w, opts...)
 }
+
+func AltConvert(source []byte, w io.Writer, opts ...parser.ParseOption) error {
+// hello func AltConvert calling defaultMarkdown
+fmt.Printf("hello AltConvert!\n")
+	return defaultMarkdown.AltConvert(source, w, opts...)
+}
+
+
 
 // A Markdown interface offers functions to convert Markdown text to
 // a desired format.
@@ -37,6 +70,8 @@ type Markdown interface {
 	// Convert interprets a UTF-8 bytes source in Markdown and write rendered
 	// contents to a writer w.
 	Convert(source []byte, writer io.Writer, opts ...parser.ParseOption) error
+
+	AltConvert(source []byte, writer io.Writer, opts ...parser.ParseOption) error
 
 	// Parser returns a Parser that will be used for conversion.
 	Parser() parser.Parser
@@ -49,6 +84,7 @@ type Markdown interface {
 
 	// SetRenderer sets a Renderer to this object.
 	SetRenderer(renderer.Renderer)
+
 }
 
 // Option is a functional option type for Markdown objects.
@@ -96,18 +132,24 @@ type markdown struct {
 }
 
 // New returns a new Markdown with given options.
-func New(options ...Option) Markdown {
+func NewMd(options ...Option) Markdown {
+fmt.Printf("hello New Md!\n")
+	alt := true
+
 	md := &markdown{
 		parser:     DefaultParser(),
-		renderer:   DefaultRenderer(),
+		renderer:   DefaultRenderer(alt),
 		extensions: []Extender{},
 	}
 	for _, opt := range options {
 		opt(md)
 	}
 	for _, e := range md.extensions {
+fmt.Printf("extend: %v\n", e)
 		e.Extend(md)
 	}
+//fmt.Printf("parser: %v\n", md.parser)
+fmt.Printf("renderer: %v\n", md.renderer)
 	return md
 }
 
@@ -129,10 +171,13 @@ func (m *markdown) AltConvert(source []byte, writer io.Writer, opts ...parser.Pa
 	reader := text.NewReader(source)
 	doc := m.parser.Parse(reader, opts...)
 
-	// we will add the default class attributes to each ast node here
-	modDoc := m.addDefAttributes(source, doc)
+// we will add the default class attributes to each ast node here! not sure anymore
+//	classes.SetDefAttributes(source, doc)
+fmt.Printf("***  using method AltCovert ***\n")
+	x:= m.renderer
+fmt.Printf("m.render: %v\n", x)
 
-	return m.renderer.Render(writer, source, modDoc)
+	return x.Render(writer, source, doc)
 }
 
 /*
